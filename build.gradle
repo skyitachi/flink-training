@@ -41,6 +41,19 @@ allprojects {
     }
 }
 
+repositories {
+    // for access from China, you may need to uncomment this line
+    maven { url 'http://maven.aliyun.com/nexus/content/groups/public/' }
+    mavenCentral()
+    maven {
+        url "https://repository.apache.org/content/repositories/snapshots/"
+        mavenContent {
+            snapshotsOnly()
+        }
+    }
+}
+
+
 subprojects {
     apply plugin: 'java'
     if (project.properties['org.gradle.project.enable_scala'].trim() == 'true') {

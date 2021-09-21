@@ -19,15 +19,20 @@
 package org.apache.flink.training.exercises.hourlytips;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.training.exercises.common.datatypes.TaxiFare;
 import org.apache.flink.training.exercises.common.sources.TaxiFareGenerator;
 import org.apache.flink.training.exercises.common.utils.MissingSolutionException;
+
+import javax.xml.crypto.Data;
 
 /**
  * The Hourly Tips exercise from the Flink training.
@@ -73,12 +78,27 @@ public class HourlyTipsExercise {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // start the data generator
-        DataStream<TaxiFare> fares = env.addSource(source);
+        DataStream<TaxiFare> fares = env.addSource(source)
+                .assignTimestampsAndWatermarks(
+                        // taxi fares are in order
+                        WatermarkStrategy.<TaxiFare>forMonotonousTimestamps()
+                                .withTimestampAssigner(
+                                        (fare, t) -> fare.getEventTimeMillis()));
+
+        System.out.println("before process window");
+        DataStream<Tuple3<Long, Long, Float>> sumOfFares =
+                fares.keyBy(x -> x.driverId)
+                        .window(TumblingEventTimeWindows.of(Time.hours(1)))
+                        .process(new MyWastefulMax());
+
+        System.out.println("before add sink");
+
+        sumOfFares.addSink(sink);
 
         // replace this with your solution
-        if (true) {
-            throw new MissingSolutionException();
-        }
+//        if (true) {
+//            throw new MissingSolutionException();
+//        }
 
         // the results should be sent to the sink that was passed in
         // (otherwise the tests won't work)

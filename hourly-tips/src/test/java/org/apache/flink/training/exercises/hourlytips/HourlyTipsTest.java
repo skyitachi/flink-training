@@ -38,6 +38,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
+import static org.assertj.core.api.AssertionsForClassTypes.in;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 public class HourlyTipsTest {
@@ -124,6 +125,18 @@ public class HourlyTipsTest {
                 (source, sink) -> new HourlyTipsSolution(source, sink).execute();
 
         return new ComposedPipeline<>(exercise, solution);
+    }
+
+    protected List<Tuple3<Long, Long, Float>> singlePipeLine(SourceFunction<TaxiFare> inputSource) throws Exception {
+
+        TestSink<Tuple3<Long, Long, Float>> testSink = new TestSink<>();
+        ExecutablePipeline<TaxiFare, Tuple3<Long, Long, Float>> exercise =
+                (source, sink) -> new HourlyTipsExercise(source, sink).execute();
+
+        JobExecutionResult jobResult = exercise.execute(inputSource, testSink);
+
+        return testSink.getResults(jobResult);
+
     }
 
     protected List<Tuple3<Long, Long, Float>> results(SourceFunction<TaxiFare> source)
