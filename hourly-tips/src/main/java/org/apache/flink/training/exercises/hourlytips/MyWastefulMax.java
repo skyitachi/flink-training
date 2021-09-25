@@ -6,9 +6,6 @@ import org.apache.flink.training.exercises.common.datatypes.TaxiFare;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.tuple.Tuple3;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class MyWastefulMax extends ProcessWindowFunction<TaxiFare, Tuple3<Long, Long, Float>, Long, TimeWindow> {
 
 
@@ -18,21 +15,10 @@ public class MyWastefulMax extends ProcessWindowFunction<TaxiFare, Tuple3<Long, 
                         Iterable<TaxiFare> elements,
                         Collector<Tuple3<Long, Long, Float>> out) throws Exception {
 
-        long maxDriverId = 0L;
-        Float maxTips = 0.0F;
-        System.out.println("in the process");
-        Map<Long, Float> sums = new HashMap<>();
+        float sum = 0F;
         for(TaxiFare taxiFare: elements) {
-
-            System.out.println("receive events: " + taxiFare.toString());
-
-            sums.put(taxiFare.driverId, sums.getOrDefault(taxiFare.driverId, 0.0f) + taxiFare.tip);
-            Float temp = sums.get(taxiFare.driverId);
-            if (temp > maxTips) {
-                maxTips = temp;
-                maxDriverId = taxiFare.driverId;
-            }
+            sum += taxiFare.tip;
         }
-        out.collect(Tuple3.of(context.window().getEnd(), maxDriverId, maxTips));
+        out.collect(Tuple3.of(context.window().getEnd(), key, sum));
     }
 }

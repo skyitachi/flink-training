@@ -18,6 +18,7 @@
 
 package org.apache.flink.training.exercises.hourlytips;
 
+import org.apache.commons.math3.analysis.function.Max;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -26,13 +27,15 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.training.exercises.common.datatypes.TaxiFare;
 import org.apache.flink.training.exercises.common.sources.TaxiFareGenerator;
-import org.apache.flink.training.exercises.common.utils.MissingSolutionException;
-
-import javax.xml.crypto.Data;
+import org.apache.flink.util.Collector;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * The Hourly Tips exercise from the Flink training.
@@ -85,15 +88,17 @@ public class HourlyTipsExercise {
                                 .withTimestampAssigner(
                                         (fare, t) -> fare.getEventTimeMillis()));
 
-        System.out.println("before process window");
         DataStream<Tuple3<Long, Long, Float>> sumOfFares =
                 fares.keyBy(x -> x.driverId)
                         .window(TumblingEventTimeWindows.of(Time.hours(1)))
                         .process(new MyWastefulMax());
 
-        System.out.println("before add sink");
+        DataStream<Tuple3<Long, Long, Float>> maxFares =
+                sumOfFares.windowAll(TumblingEventTimeWindows.of(Time.hours(1)))
+                        .process(new MaxStream());
+//                                .maxBy(2);
 
-        sumOfFares.addSink(sink);
+        maxFares.addSink(sink);
 
         // replace this with your solution
 //        if (true) {
@@ -109,5 +114,27 @@ public class HourlyTipsExercise {
 
         // execute the pipeline and return the result
         return env.execute("Hourly Tips");
+    }
+
+    public static class MaxStream extends ProcessAllWindowFunction<Tuple3<Long, Long, Float>, Tuple3<Long, Long, Float>, TimeWindow> {
+        private final Logger logger = LogManager.getLogger(MaxStream.class);
+        @Override
+        public void process(Context context,
+                            Iterable<Tuple3<Long, Long, Float>> elements,
+                            Collector<Tuple3<Long, Long, Float>> out) throws Exception {
+
+            Tuple3<Long, Long, Float> maxTuple3 = null;
+            for (Tuple3<Long, Long, Float> element: elements) {
+                logger.info("elements: {}", element);
+                if (maxTuple3 == null) {
+                    maxTuple3 = element;
+                } else if (element.f2 > maxTuple3.f2){
+                    maxTuple3 = element;
+                }
+            }
+            out.collect(maxTuple3);
+        }
+
+
     }
 }

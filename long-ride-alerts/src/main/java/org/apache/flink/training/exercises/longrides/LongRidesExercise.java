@@ -21,6 +21,8 @@ package org.apache.flink.training.exercises.longrides;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -98,17 +100,26 @@ public class LongRidesExercise {
     @VisibleForTesting
     public static class AlertFunction extends KeyedProcessFunction<Long, TaxiRide, Long> {
 
+        private MapState<Long, TaxiRide> rideMapState;
+
         @Override
         public void open(Configuration config) throws Exception {
-            throw new MissingSolutionException();
+            rideMapState = getRuntimeContext()
+                    .getMapState(new MapStateDescriptor<Long, TaxiRide>("rideMapState", Long.class, TaxiRide.class));
         }
 
         @Override
         public void processElement(TaxiRide ride, Context context, Collector<Long> out)
-                throws Exception {}
+                throws Exception {
+            if (ride.isStart) {
+                rideMapState.put(ride.rideId, ride);
+            }
+        }
 
         @Override
         public void onTimer(long timestamp, OnTimerContext context, Collector<Long> out)
-                throws Exception {}
+                throws Exception {
+
+        }
     }
 }
